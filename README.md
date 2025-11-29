@@ -1,281 +1,523 @@
-# VoiceMode
+# Voice Mode MCP Server - Bidirectional Voice with Caps Lock Control
 
+Text-to-Speech (TTS) and Speech-to-Text (STT) for Claude Code with **Caps Lock toggle control**.
 
-> **Install via:** `uv tool install voice-mode` | [getvoicemode.com](https://getvoicemode.com)
+## Status
 
-[![PyPI Downloads](https://static.pepy.tech/badge/voice-mode)](https://pepy.tech/project/voice-mode)
-[![PyPI Downloads](https://static.pepy.tech/badge/voice-mode/month)](https://pepy.tech/project/voice-mode)
-[![PyPI Downloads](https://static.pepy.tech/badge/voice-mode/week)](https://pepy.tech/project/voice-mode)
+✅ **TTS OPERATIONAL** - Edge TTS working on Linux
+✅ **BEEP TOGGLE OPERATIONAL** - Use MCP tool or shell command with beep feedback
+✅ **WAYLAND COMPATIBLE** - Works on Wayland using MCP tool (no keyboard listener needed)
+⚠️ **STT TRANSCRIPTION PENDING** - Whisper requires Python ≤3.13 (onnxruntime limitation)
 
-Natural voice conversations for AI assistants. VoiceMode brings human-like voice interactions to Claude Code, AI code editors through the Model Context Protocol (MCP).
+## Quick Start - Wayland Solution
 
-## 🖥️ Compatibility
+**Wayland blocks keyboard listeners**, so we use two simple methods:
 
-**Runs on:** Linux • macOS • Windows (WSL) • NixOS | **Python:** 3.10-3.14
+### Method 1: MCP Tool (In Claude Code)
+Use the `toggle_stt()` tool from Claude Code chat - it plays beeps automatically!
 
-## ✨ Features
-
-- **🎙️ Natural Voice Conversations** with Claude Code - ask questions and hear responses
-- **🗣️ Supports local Voice Models** - works with any OpenAI API compatible STT/TTS services
-- **⚡ Real-time** - low-latency voice interactions with automatic transport selection
-- **🔧 MCP Integration** - seamless with Claude Code (and other MCP clients)
-- **🎯 Silence detection** - automatically stops recording when you stop speaking (no more waiting!)
-- **🔄 Multiple transports** - local microphone or LiveKit room-based communication (optional)  
-
-## 🎯 Simple Requirements
-
-**All you need to get started:**
-
-1. **🎤 Computer with microphone and speakers**
-2. **🔑 OpenAI API Key** (Recommended, if only as a backup for local services)
-
-## Quick Start
-
-### Install VoiceMode and dependencies with UV (Recommended)
-
-- Linux (fedora, debian/ubuntu) 
-- macOS
-- Windows WSL
-
+### Method 2: Shell Command (Terminal)
 ```bash
-# Install VoiceMode MCP python package and dependencies
-curl -LsSf https://astral.sh/uv/install.sh | sh 
-uvx voice-mode-install
-
-# While local voice services can be installed automatically, we recommend
-# providing an OpenAI API key as a fallback in case local services are unavailable
-export OPENAI_API_KEY=your-openai-key  # Optional but recommended
-
-# Add VoiceMode to Claude
-claude mcp add --scope user voicemode -- uvx --refresh voice-mode
-
-# Start a voice conversation
-claude converse
+toggle-voice  # Toggles voice mode with beeps
 ```
 
-### Manual Installation
+**Beep Feedback:**
+- 🎵 **ON**: Higher pitch beep (1000Hz, 150ms)
+- 🎵 **OFF**: Lower pitch beep (600Hz, 150ms)
 
-For manual setup steps, see the [Getting Started Guide](docs/tutorials/getting-started.md).
+**What requires Whisper:**
+- Actual speech-to-text transcription (coming when Python 3.14 support is ready)
 
-## 🎬 Demo
+## Overview
 
-Watch VoiceMode in action with Claude Code:
+Provides bidirectional voice capabilities via MCP protocol:
+- **TTS**: Microsoft Edge TTS (no API keys required)
+- **STT**: Whisper transcription with continuous listening
+- **Caps Lock Toggle**: Press Caps Lock to turn STT on/off
+- **Transcription History**: Automatic storage of last 50 transcriptions
 
-[![VoiceMode Demo](https://img.youtube.com/vi/cYdwOD_-dQc/maxresdefault.jpg)](https://www.youtube.com/watch?v=cYdwOD_-dQc)
+## Features
 
-The `converse` function makes voice interactions natural - it automatically waits for your response by default, creating a real conversation flow.
+### Text-to-Speech (Operational)
+- Convert text to natural-sounding speech
+- Multiple Microsoft Edge neural voices
+- Adjustable rate and volume
+- Audio playback on Linux (mpg123/ffplay)
 
-## Installation
-
-### Prerequisites
-- Python 3.10-3.14
-- [Astral UV](https://github.com/astral-sh/uv) - Package manager (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- OpenAI API Key (or compatible service)
-
-> **Note on LiveKit:** LiveKit integration is optional and requires Python 3.10-3.13 (Python 3.14 support pending upstream dependencies). Install with: `uv tool install voice-mode[livekit]`. See [LiveKit Integration Guide](docs/guides/livekit-setup.md) for details.
-
-#### System Dependencies
-
-<details>
-<summary><strong>Ubuntu/Debian</strong></summary>
-
-```bash
-sudo apt update
-sudo apt install -y ffmpeg gcc libasound2-dev libasound2-plugins libportaudio2 portaudio19-dev pulseaudio pulseaudio-utils python3-dev
-```
-
-**Note for WSL2 users**: WSL2 requires additional audio packages (pulseaudio, libasound2-plugins) for microphone access.
-</details>
-
-<details>
-<summary><strong>Fedora/RHEL</strong></summary>
-
-```bash
-sudo dnf install alsa-lib-devel ffmpeg gcc portaudio portaudio-devel python3-devel
-```
-</details>
-
-<details>
-<summary><strong>macOS</strong></summary>
-
-```bash
-# Install Homebrew if not already installed
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install dependencies
-brew install ffmpeg node portaudio
-```
-</details>
-
-<details>
-<summary><strong>Windows (WSL)</strong></summary>
-
-Follow the Ubuntu/Debian instructions above within WSL.
-</details>
-
-<details>
-<summary><strong>NixOS</strong></summary>
-
-VoiceMode includes a flake.nix with all required dependencies. You can either:
-
-1. **Use the development shell** (temporary):
-```bash
-nix develop github:mbailey/voicemode
-```
-
-2. **Install system-wide** (see Installation section below)
-</details>
-
-### Quick Install
-
-```bash
-# Using Claude Code (recommended)
-claude mcp add --scope user voicemode uvx --refresh voice-mode
-```
-
-### Configuration for AI Coding Assistants
-
-> 📖 **Looking for detailed setup instructions?** Check our comprehensive [Getting Started Guide](docs/tutorials/getting-started.md) for step-by-step instructions!
-
-Below are quick configuration snippets. For full installation and setup instructions, see the integration guides above.
-
-<details>
-<summary><strong>Claude Code (CLI)</strong></summary>
-
-```bash
-claude mcp add --scope user voicemode -- uvx --refresh voice-mode
-```
-
-Or with environment variables:
-```bash
-claude mcp add --scope user --env OPENAI_API_KEY=your-openai-key voicemode -- uvx --refresh voice-mode
-```
-</details>
-
-### Alternative Installation Options
-
-<details>
-<summary><strong>From source</strong></summary>
-
-```bash
-git clone https://github.com/mbailey/voicemode.git
-cd voicemode
-uv tool install -e .
-```
-</details>
-
-<details>
-<summary><strong>NixOS Installation Options</strong></summary>
-
-**1. Install with nix profile (user-wide):**
-```bash
-nix profile install github:mbailey/voicemode
-```
-
-**2. Add to NixOS configuration (system-wide):**
-```nix
-# In /etc/nixos/configuration.nix
-environment.systemPackages = [
-  (builtins.getFlake "github:mbailey/voicemode").packages.${pkgs.system}.default
-];
-```
-
-**3. Add to home-manager:**
-```nix
-# In home-manager configuration
-home.packages = [
-  (builtins.getFlake "github:mbailey/voicemode").packages.${pkgs.system}.default
-];
-```
-
-**4. Run without installing:**
-```bash
-nix run github:mbailey/voicemode
-```
-</details>
+### Speech-to-Text (Requires Whisper Installation)
+- Continuous listening mode
+- Caps Lock keyboard toggle
+- **Musical beep feedback** (ascending/descending tones)
+- Voice announcements for mode changes
+- Automatic transcription of 3-second chunks
+- Transcription history with timestamps
+- Multiple Whisper model sizes (tiny to large)
 
 ## Configuration
 
-- 📖 **[Getting Started](docs/tutorials/getting-started.md)** - Step-by-step setup guide
-- 🔧 **[Configuration Reference](docs/guides/configuration.md)** - All environment variables
+**MCP Server**: Add to `~/.claude.json`:
 
-### Quick Setup
-
-The only required configuration is your OpenAI API key:
-
-```bash
-export OPENAI_API_KEY="your-key"
+```json
+{
+  "mcpServers": {
+    "voice-mode": {
+      "command": "python3",
+      "args": ["/mnt/agentic-system/mcp-servers/voice-mode/server.py"],
+      "disabled": false
+    }
+  }
+}
 ```
 
-## Local STT/TTS Services
+## Installation
 
-For privacy-focused or offline usage, VoiceMode supports local speech services:
+### Core Dependencies (Required for TTS)
 
-- **[Whisper.cpp](docs/guides/whisper-setup.md)** - Local speech-to-text with OpenAI-compatible API
-- **[Kokoro](docs/guides/kokoro-setup.md)** - Local text-to-speech with multiple voice options
+```bash
+cd /mnt/agentic-system/mcp-servers/voice-mode
+pip3 install -r requirements.txt
+```
 
-These services provide the same API interface as OpenAI, allowing seamless switching between cloud and local processing.
+### STT Dependencies (Optional - Python ≤3.13 Only)
+
+**⚠️ Python 3.14 Incompatibility**: The `faster-whisper` library depends on `onnxruntime` and `av` (PyAV) which do not yet support Python 3.14.
+
+**Error details**:
+- `av` (PyAV): Cython compilation fails with Python 3.14
+- `onnxruntime`: No Python 3.14 wheels available yet
+- Both are required dependencies of `faster-whisper`
+
+**Workaround Options**:
+
+1. **Wait for upstream Python 3.14 support** (recommended)
+   - Track: https://github.com/SYSTRAN/faster-whisper/issues
+   - Expected: Q1-Q2 2025
+
+2. **Use Python 3.13 virtual environment** (works now):
+   ```bash
+   # Install Python 3.13 (if not available)
+   sudo dnf install python3.13
+
+   # Create Python 3.13 virtual environment
+   python3.13 -m venv ~/.venvs/whisper-py313
+   source ~/.venvs/whisper-py313/bin/activate
+   pip install faster-whisper
+
+   # Update ~/.claude.json to use venv python
+   {
+     "mcpServers": {
+       "voice-mode": {
+         "command": "/home/marc/.venvs/whisper-py313/bin/python3",
+         "args": ["/mnt/agentic-system/mcp-servers/voice-mode/server.py"]
+       }
+     }
+   }
+
+   # Restart Claude Code
+   ```
+
+3. **Use pywhispercpp** (C++ backend, faster):
+   - Requires code modifications to server.py
+   - No Python version restrictions
+   - Installation: `pip install pywhispercpp`
+
+4. **Use cloud STT service** (Google/Azure/AWS):
+   - Requires API keys and code modifications
+   - No local model download needed
+
+**Note**: Caps Lock toggle, beeps, and voice announcements work **immediately** without any Whisper installation!
+
+## Available Tools
+
+### Text-to-Speech
+
+#### `speak`
+Speak text using Edge TTS
+
+**Parameters**:
+- `text` (required): Text to speak
+- `voice` (optional): Voice name (default: en-IE-EmilyNeural 🇮🇪)
+- `rate` (optional): Speech rate (e.g., "+10%", "-20%")
+- `volume` (optional): Volume (e.g., "+10%", "-20%")
+- `play_audio` (optional): Play audio (default: true)
+
+**Example**:
+```python
+result = await speak("Hello from voice mode!", voice="en-US-AriaNeural")
+```
+
+#### `list_voices`
+List available TTS voices
+
+**Parameters**:
+- `language` (optional): Language filter (default: "en-US")
+
+**Example**:
+```python
+voices = await list_voices(language="en-IE")
+```
+
+### Speech-to-Text (Requires Whisper)
+
+#### `listen`
+One-shot recording and transcription
+
+**Parameters**:
+- `duration` (optional): Recording duration in seconds (default: 5)
+- `language` (optional): Language code (default: "en")
+- `model` (optional): Whisper model size (default: "base")
+
+**Example**:
+```python
+result = await listen(duration=5, model="base")
+print(result["text"])
+```
+
+#### `start_voice_mode`
+Start continuous voice mode with Caps Lock toggle
+
+**Parameters**:
+- `model` (optional): Whisper model size (default: "base")
+- `chunk_duration` (optional): Chunk duration in seconds (default: 3)
+
+**Example**:
+```python
+result = await start_voice_mode(model="base", chunk_duration=3)
+# Now press Caps Lock to toggle STT on/off
+```
+
+**Note**: The keyboard listener starts automatically on server launch. Call `start_voice_mode()` to enable continuous listening and transcription.
+
+#### `stop_voice_mode`
+Stop continuous voice mode
+
+**Example**:
+```python
+result = await stop_voice_mode()
+```
+
+#### `toggle_stt`
+Toggle STT on/off programmatically
+
+**Parameters**:
+- `enable` (optional): True=on, False=off, None=toggle
+
+**Example**:
+```python
+result = await toggle_stt(enable=True)
+```
+
+#### `get_voice_mode_status`
+Get current voice mode status
+
+**Example**:
+```python
+status = await get_voice_mode_status()
+print(status["stt_active"])          # Is STT on?
+print(status["whisper_available"])   # Is Whisper installed?
+```
+
+#### `get_transcriptions`
+Get recent transcriptions
+
+**Parameters**:
+- `limit` (optional): Number of transcriptions (default: 10)
+
+**Example**:
+```python
+transcriptions = await get_transcriptions(limit=10)
+for t in transcriptions["transcriptions"]:
+    print(f"{t['timestamp']}: {t['text']}")
+```
+
+## Caps Lock Toggle Control
+
+The keyboard listener starts automatically when the MCP server launches:
+
+1. **Keyboard listener** is always active, monitoring Caps Lock key
+2. **Call `start_voice_mode()`** to enable the continuous listening loop (if Whisper is installed)
+3. **Press Caps Lock** to toggle STT on/off
+4. **Audio feedback**:
+   - **Beep sound**: Immediate audio cue (ascending tone for ON, descending for OFF)
+   - **Voice announcement**: Speaks "Voice mode ON" or "Voice mode OFF"
+5. **When STT is ON**: Continuously records 3-second chunks and transcribes
+6. **Transcriptions**: Automatically logged and stored in history
+
+**Audio Feedback Details**:
+- **ON beep**: Higher pitch tone (800Hz, 150ms) - sounds like activation
+- **OFF beep**: Lower pitch tone (400Hz, 150ms) - sounds like deactivation
+- **Beep tools** (in order of preference): ffplay, paplay, beep command
+- **Voice feedback**: Follows immediately after beep
+
+**IMPORTANT**: After fixing beep code, **restart Claude Code** for changes to take effect!
+
+**Note**: The physical Caps Lock LED state is independent - this monitors the key press event, not the lock state.
+
+## Popular Voices
+
+### English (Ireland)
+- `en-IE-EmilyNeural` - Irish female (default) 🇮🇪
+- `en-IE-ConnorNeural` - Irish male 🇮🇪
+
+### English (US)
+- `en-US-AriaNeural` - Natural female voice
+- `en-US-GuyNeural` - Natural male voice
+- `en-US-JennyNeural` - Professional female voice
+
+### English (GB)
+- `en-GB-SoniaNeural` - British female 🇬🇧
+- `en-GB-RyanNeural` - British male 🇬🇧
+
+### Other Languages
+- `en-AU-NatashaNeural` - Australian female 🇦🇺
+- `es-ES-AlvaroNeural` - Spanish male 🇪🇸
+- `fr-FR-DeniseNeural` - French female 🇫🇷
+- `de-DE-KatjaNeural` - German female 🇩🇪
+
+## Whisper Models
+
+| Model | Size | Accuracy | Speed |
+|-------|------|----------|-------|
+| tiny | ~140MB | Good | Fastest |
+| base | ~140MB | Better | Fast (default) |
+| small | ~460MB | High | Medium |
+| medium | ~1.5GB | Very High | Slow |
+| large | ~2.9GB | Best | Slowest |
+
+Models are cached in `~/.cache/huggingface/`
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│  Keyboard Listener (pynput)                  │
+│  - Monitors Caps Lock key press              │
+│  - Toggles STT state                         │
+│  - Triggers audio feedback (beep + voice)    │
+└────────────────┬─────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────┐
+│  Audio Feedback System                       │
+│  - play_beep(): Musical tones (ON/OFF)       │
+│  - speak(): Voice announcements (TTS)        │
+│  - Async execution via event loop            │
+└──────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────┐
+│  STT State Manager (Thread-Safe)             │
+│  - Active/Inactive flag                      │
+│  - Transcription history (FIFO, last 50)     │
+│  - Whisper model cache                       │
+└────────────────┬─────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────┐
+│  Continuous Listening Loop (Async)           │
+│  - Records 3s audio chunks (arecord)         │
+│  - Transcribes with Faster Whisper           │
+│  - Stores with timestamp                     │
+│  - Sleeps when STT inactive                  │
+└──────────────────────────────────────────────┘
+```
+
+## Testing
+
+### Test TTS (No Whisper Required)
+
+```bash
+# Command line
+edge-tts --text "Hello from voice mode" --write-media /tmp/test.mp3
+mpg123 /tmp/test.mp3
+
+# Via MCP (after restarting Claude Code)
+# Use the speak tool in Claude Code
+```
+
+### Test Beep Sounds
+
+```bash
+# Test ON beep (higher pitch - activation)
+ffplay -nodisp -autoexit -t 0.15 -f lavfi -i "sine=frequency=800:duration=0.15"
+
+# Test OFF beep (lower pitch - deactivation)
+ffplay -nodisp -autoexit -t 0.15 -f lavfi -i "sine=frequency=400:duration=0.15"
+
+# Test both sequentially
+echo "🔊 Testing ON beep (800Hz):" && \
+ffplay -nodisp -autoexit -t 0.15 -f lavfi -i "sine=frequency=800:duration=0.15" 2>/dev/null && \
+sleep 0.5 && \
+echo "🔊 Testing OFF beep (400Hz):" && \
+ffplay -nodisp -autoexit -t 0.15 -f lavfi -i "sine=frequency=400:duration=0.15" 2>/dev/null && \
+echo "✅ Beeps work!"
+```
+
+### Test STT (Requires Whisper)
+
+```bash
+# Check if Whisper is available
+python3 -c "from faster_whisper import WhisperModel; print('✓ Whisper available')"
+
+# Test recording
+arecord -D default -f cd -t wav -d 3 /tmp/test.wav
+
+# Via MCP (after restarting Claude Code)
+# Use the listen tool in Claude Code
+```
+
+## Requirements
+
+### Core (TTS)
+- Python 3.8+
+- fastmcp
+- edge-tts
+- pynput (keyboard listener)
+- Linux audio playback: mpg123, ffplay, mplayer, or vlc
+
+### Optional (STT)
+- faster-whisper (Python ≤3.13)
+- arecord (ALSA utils) - Linux audio recording
+- Microphone access
 
 ## Troubleshooting
 
-### Common Issues
+### TTS Issues
 
-- **No microphone access**: Check system permissions for terminal/application
-  - **WSL2 Users**: Additional audio packages (pulseaudio, libasound2-plugins) required for microphone access
-- **UV not found**: Install with `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **OpenAI API error**: Verify your `OPENAI_API_KEY` is set correctly
-- **No audio output**: Check system audio settings and available devices
-
-### Audio Saving
-
-To save all audio files (both TTS output and STT input):
-
+**Voice MCP not loading**:
 ```bash
-export VOICEMODE_SAVE_AUDIO=true
+# Check configuration
+cat ~/.claude.json | jq '.mcpServers["voice-mode"]'
+
+# Test server directly
+python3 /mnt/agentic-system/mcp-servers/voice-mode/server.py
 ```
 
-Audio files are saved to: `~/.voicemode/audio/YYYY/MM/` with timestamps in the filename.
+**No audio output (TTS or beeps)**:
+```bash
+# Install audio player and ffmpeg (for beeps)
+sudo dnf install mpg123 ffmpeg
 
-## Documentation
+# Check audio device
+pactl list sinks
 
-📚 **[Read the full documentation at voice-mode.readthedocs.io](https://voice-mode.readthedocs.io)**
+# Test audio output
+ffplay -nodisp -autoexit -t 0.5 -f lavfi -i "sine=frequency=440:duration=0.5"
 
-### Getting Started
+# Or disable playback (just generate files)
+# Set play_audio: false
+```
 
-- **[Getting Started](docs/tutorials/getting-started.md)** - Step-by-step setup for all supported tools
-- **[Configuration Guide](docs/guides/configuration.md)** - Complete environment variable reference
+**Beeps not playing**:
+```bash
+# Check if ffplay is available
+which ffplay
 
-### Development
+# Install ffmpeg if missing
+sudo dnf install ffmpeg
 
-- **[Development Setup](docs/tutorials/development-setup.md)** - Local development guide
+# Test beep manually
+ffplay -nodisp -autoexit -t 0.2 -f lavfi -i "sine=frequency=523:duration=0.1,sine=frequency=659:duration=0.1"
+```
 
-### Service Guides
+### STT Issues
 
-- **[Whisper.cpp Setup](docs/guides/whisper-setup.md)** - Local speech-to-text configuration
-- **[Kokoro Setup](docs/guides/kokoro-setup.md)** - Local text-to-speech configuration
-- **[LiveKit Integration](docs/guides/livekit-setup.md)** - Real-time voice communication
+**Whisper installation fails (Python 3.14)**:
+- Use Python 3.13 virtual environment (see Installation section)
+- Or wait for onnxruntime Python 3.14 support
 
-## Links
+**Recording fails**:
+```bash
+# Install ALSA utilities
+sudo dnf install alsa-utils
 
-- **Website**: [getvoicemode.com](https://getvoicemode.com)
-- **Documentation**: [voice-mode.readthedocs.io](https://voice-mode.readthedocs.io)
-- **GitHub**: [github.com/mbailey/voicemode](https://github.com/mbailey/voicemode)
-- **PyPI**: [pypi.org/project/voice-mode](https://pypi.org/project/voice-mode/)
+# List audio devices
+arecord -l
 
-### Community
+# Test recording
+arecord -D default -f cd -t wav -d 3 /tmp/test.wav
+```
 
-- **Twitter/X**: [@getvoicemode](https://twitter.com/getvoicemode)
-- **YouTube**: [@getvoicemode](https://youtube.com/@getvoicemode)
+**Caps Lock not working**:
+```bash
+# 1. Check if pynput is installed
+python3 -c "import pynput; print('✓ pynput installed')"
 
-## See Also
+# 2. Check keyboard permissions
+ls -l /dev/input/event* | head -5
 
-- 🚀 [Getting Started](docs/tutorials/getting-started.md) - Setup instructions for all supported tools
-- 🔧 [Configuration Reference](docs/guides/configuration.md) - Environment variables and options
-- 🎤 [Local Services Setup](docs/guides/kokoro-setup.md) - Run TTS/STT locally for privacy
+# 3. Add user to input group (if needed)
+sudo usermod -aG input $USER
+# Logout and login for group change to take effect
 
-## License
+# 4. Test keyboard listener manually
+python3 << 'EOF'
+from pynput import keyboard
 
-MIT - A [Failmode](https://failmode.com) Project
+def on_press(key):
+    print(f"Key pressed: {key}")
+    if key == keyboard.Key.caps_lock:
+        print("✓ Caps Lock detected!")
 
----
-mcp-name: com.failmode/voicemode
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+print("Press Caps Lock (Ctrl+C to exit)...")
+import time
+time.sleep(10)
+EOF
+
+# 5. Restart Claude Code after fixing permissions
+```
+
+**High CPU usage during STT**:
+- Use smaller Whisper model: `start_voice_mode(model="tiny")`
+- Increase chunk duration: `start_voice_mode(chunk_duration=5)`
+
+**Transcription quality issues**:
+- Use larger model: `start_voice_mode(model="small")`
+- Reduce background noise
+- Speak closer to microphone
+
+## Performance
+
+- **TTS latency**: ~1-2 seconds
+- **STT transcription**: ~0.5-2 seconds (model dependent)
+- **Memory usage**:
+  - Base: ~500MB
+  - Large model: ~2GB
+- **Disk usage**: Models cached in `~/.cache/huggingface/`
+- **Keyboard listener**: <1MB memory, negligible CPU
+
+## Usage in Claude Code
+
+After restarting Claude Code, all voice tools will be available via MCP.
+
+**Workflow**:
+1. Server auto-starts keyboard listener (Caps Lock monitoring active)
+2. Call `start_voice_mode()` to enable continuous listening (if using STT)
+3. Press Caps Lock to toggle STT on/off (hear beep + voice confirmation)
+4. Speak naturally when STT is ON - transcriptions appear in logs and history
+5. Press Caps Lock again to deactivate STT
+6. Use `get_transcriptions()` to retrieve recent transcriptions
+
+**Note**: Restart Claude Code after configuration changes!
+
+## Platform Differences
+
+### Linux (Current System)
+- TTS: Edge TTS (Microsoft)
+- STT: Faster Whisper
+- Audio: mpg123, arecord
+- Free, no API keys
+
+### macOS
+- TTS: `say` command (built-in) or Edge TTS
+- STT: Whisper
+- Audio: Built-in CoreAudio
+- Arduino hardware integration available
+
+## References
+
+- Edge TTS: https://github.com/rany2/edge-tts
+- Faster Whisper: https://github.com/SYSTRAN/faster-whisper
+- Microsoft TTS Voices: https://speech.microsoft.com/portal/voicegallery
+- pynput: https://pynput.readthedocs.io/
