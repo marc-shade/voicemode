@@ -70,8 +70,8 @@ DEFAULT_VOLUME = "+0%"
 DEFAULT_STT_DURATION = 3  # seconds per recording chunk
 DEFAULT_WHISPER_MODEL = "base"  # tiny, base, small, medium, large
 
-# GPU STT Configuration (completeu-server)
-GPU_STT_ENDPOINT = os.environ.get("GPU_STT_ENDPOINT", "http://completeu-server.local:8765")
+# GPU STT Configuration - set GPU_STT_ENDPOINT to your inference server
+GPU_STT_ENDPOINT = os.environ.get("GPU_STT_ENDPOINT", "http://localhost:8765")
 GPU_STT_ENABLED = os.environ.get("GPU_STT_ENABLED", "true").lower() == "true"
 GPU_STT_TIMEOUT = int(os.environ.get("GPU_STT_TIMEOUT", "30"))  # seconds
 
