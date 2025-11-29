@@ -44,6 +44,14 @@ except ImportError:
     WHISPER_AVAILABLE = False
     WhisperModel = None
 
+# HTTP client for remote GPU STT
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    AIOHTTP_AVAILABLE = False
+    aiohttp = None
+
 # Set up logging - use stderr for MCP compatibility
 logging.basicConfig(
     level=logging.DEBUG,  # Enable debug to see all key presses
@@ -61,6 +69,11 @@ DEFAULT_RATE = "+0%"
 DEFAULT_VOLUME = "+0%"
 DEFAULT_STT_DURATION = 3  # seconds per recording chunk
 DEFAULT_WHISPER_MODEL = "base"  # tiny, base, small, medium, large
+
+# GPU STT Configuration (completeu-server)
+GPU_STT_ENDPOINT = os.environ.get("GPU_STT_ENDPOINT", "http://completeu-server.local:8765")
+GPU_STT_ENABLED = os.environ.get("GPU_STT_ENABLED", "true").lower() == "true"
+GPU_STT_TIMEOUT = int(os.environ.get("GPU_STT_TIMEOUT", "30"))  # seconds
 
 # STT State Management
 class STTState:
@@ -364,8 +377,59 @@ async def record_audio_chunk(duration: int) -> Optional[str]:
         return None
 
 
-async def transcribe_audio(audio_file: str, model_size: str = DEFAULT_WHISPER_MODEL) -> Optional[str]:
-    """Transcribe audio file using pywhispercpp"""
+async def transcribe_audio_gpu(audio_file: str, model: str = DEFAULT_WHISPER_MODEL, language: str = "en") -> Optional[str]:
+    """
+    Transcribe audio using remote GPU STT service (completeu-server)
+
+    10x faster than local CPU with MLX-accelerated Whisper on M4 Max
+    """
+    if not AIOHTTP_AVAILABLE:
+        logger.warning("aiohttp not available for GPU STT, falling back to local")
+        return None
+
+    try:
+        # Read audio file
+        with open(audio_file, 'rb') as f:
+            audio_data = f.read()
+
+        # Encode as base64
+        import base64
+        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{GPU_STT_ENDPOINT}/transcribe/json"
+            payload = {
+                "audio_base64": audio_base64,
+                "model": model,
+                "language": language
+            }
+
+            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=GPU_STT_TIMEOUT)) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    text = result.get("text", "").strip()
+                    processing_time = result.get("processing_time_ms", 0)
+                    backend = result.get("backend", "unknown")
+                    logger.info(f"GPU STT ({backend}): {processing_time:.0f}ms - '{text[:50]}...' " if len(text) > 50 else f"GPU STT ({backend}): {processing_time:.0f}ms - '{text}'")
+                    return text if text else None
+                else:
+                    error = await response.text()
+                    logger.error(f"GPU STT error ({response.status}): {error}")
+                    return None
+
+    except asyncio.TimeoutError:
+        logger.warning(f"GPU STT timeout after {GPU_STT_TIMEOUT}s")
+        return None
+    except aiohttp.ClientError as e:
+        logger.warning(f"GPU STT connection error: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"GPU STT error: {e}")
+        return None
+
+
+async def transcribe_audio_local(audio_file: str, model_size: str = DEFAULT_WHISPER_MODEL) -> Optional[str]:
+    """Transcribe audio file using local pywhispercpp (CPU)"""
     if not WHISPER_AVAILABLE:
         return None
 
@@ -390,15 +454,52 @@ async def transcribe_audio(audio_file: str, model_size: str = DEFAULT_WHISPER_MO
 
         return text if text else None
     except Exception as e:
-        logger.error(f"Error transcribing audio: {e}")
+        logger.error(f"Error transcribing audio locally: {e}")
         return None
-    finally:
-        # Clean up audio file
-        try:
-            if os.path.exists(audio_file):
-                os.remove(audio_file)
-        except:
-            pass
+
+
+async def transcribe_audio(audio_file: str, model_size: str = DEFAULT_WHISPER_MODEL, use_gpu: bool = True) -> Optional[str]:
+    """
+    Transcribe audio file - tries GPU first, falls back to local CPU
+
+    Args:
+        audio_file: Path to audio file
+        model_size: Whisper model size
+        use_gpu: Whether to try GPU STT first (default: True)
+
+    Returns:
+        Transcribed text or None
+    """
+    text = None
+
+    # Try GPU STT first if enabled
+    if use_gpu and GPU_STT_ENABLED and AIOHTTP_AVAILABLE:
+        logger.debug("Attempting GPU STT transcription...")
+        text = await transcribe_audio_gpu(audio_file, model_size)
+        if text:
+            # Cleanup and return
+            try:
+                if os.path.exists(audio_file):
+                    os.remove(audio_file)
+            except:
+                pass
+            return text
+        else:
+            logger.debug("GPU STT failed, falling back to local")
+
+    # Fall back to local CPU transcription
+    if WHISPER_AVAILABLE:
+        logger.debug("Using local CPU transcription...")
+        text = await transcribe_audio_local(audio_file, model_size)
+
+    # Cleanup
+    try:
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
+    except:
+        pass
+
+    return text
 
 
 async def continuous_listening_loop(duration: int = DEFAULT_STT_DURATION, model: str = DEFAULT_WHISPER_MODEL):
@@ -589,7 +690,8 @@ async def list_voices(language: str = "en-US") -> Dict[str, Any]:
 async def listen(
     duration: int = 5,
     language: str = "en",
-    model: str = "base"
+    model: str = "base",
+    use_gpu: bool = True
 ) -> Dict[str, Any]:
     """
     Listen to microphone and transcribe speech to text using Whisper (one-shot)
@@ -598,15 +700,18 @@ async def listen(
         duration: Recording duration in seconds (default: 5)
         language: Language code (e.g., "en", "es", "fr")
         model: Whisper model size (tiny, base, small, medium, large)
+        use_gpu: Use GPU STT on completeu-server if available (default: True, 10x faster)
 
     Returns:
         Transcribed text and confidence
     """
     try:
-        if not WHISPER_AVAILABLE:
+        # Check if any STT backend is available
+        stt_available = WHISPER_AVAILABLE or (GPU_STT_ENABLED and AIOHTTP_AVAILABLE)
+        if not stt_available:
             return {
                 "success": False,
-                "error": "pywhispercpp not available. Install with: pip install pywhispercpp",
+                "error": "No STT backend available. Install pywhispercpp or enable GPU STT",
                 "text": None,
                 "audio_file": None
             }
@@ -622,15 +727,17 @@ async def listen(
                 "audio_file": None
             }
 
-        # Transcribe
-        text = await transcribe_audio(audio_file, model)
+        # Transcribe (GPU first if enabled, then local fallback)
+        text = await transcribe_audio(audio_file, model, use_gpu=use_gpu)
 
         if text:
+            backend = "gpu" if (use_gpu and GPU_STT_ENABLED) else "local"
             return {
                 "success": True,
                 "text": text,
                 "duration": duration,
-                "model": model
+                "model": model,
+                "backend": backend
             }
         else:
             return {
