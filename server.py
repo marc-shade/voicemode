@@ -379,7 +379,7 @@ async def record_audio_chunk(duration: int) -> Optional[str]:
 
 async def transcribe_audio_gpu(audio_file: str, model: str = DEFAULT_WHISPER_MODEL, language: str = "en") -> Optional[str]:
     """
-    Transcribe audio using remote GPU STT service (completeu-server)
+    Transcribe audio using remote GPU STT service (AI inference node)
 
     10x faster than local CPU with MLX-accelerated Whisper on M4 Max
     """
@@ -700,7 +700,7 @@ async def listen(
         duration: Recording duration in seconds (default: 5)
         language: Language code (e.g., "en", "es", "fr")
         model: Whisper model size (tiny, base, small, medium, large)
-        use_gpu: Use GPU STT on completeu-server if available (default: True, 10x faster)
+        use_gpu: Use GPU STT on AI inference node if available (default: True, 10x faster)
 
     Returns:
         Transcribed text and confidence
