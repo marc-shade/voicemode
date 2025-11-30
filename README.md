@@ -62,7 +62,7 @@ Provides bidirectional voice capabilities via MCP protocol:
   "mcpServers": {
     "voice-mode": {
       "command": "python3",
-      "args": ["/mnt/agentic-system/mcp-servers/voice-mode/server.py"],
+      "args": ["${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode/server.py"],
       "disabled": false
     }
   }
@@ -74,7 +74,7 @@ Provides bidirectional voice capabilities via MCP protocol:
 ### Core Dependencies (Required for TTS)
 
 ```bash
-cd /mnt/agentic-system/mcp-servers/voice-mode
+cd ${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode
 pip3 install -r requirements.txt
 ```
 
@@ -107,8 +107,8 @@ pip3 install -r requirements.txt
    {
      "mcpServers": {
        "voice-mode": {
-         "command": "/home/marc/.venvs/whisper-py313/bin/python3",
-         "args": ["/mnt/agentic-system/mcp-servers/voice-mode/server.py"]
+         "command": "${HOME}/.venvs/whisper-py313/bin/python3",
+         "args": ["${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode/server.py"]
        }
      }
    }
@@ -389,7 +389,7 @@ arecord -D default -f cd -t wav -d 3 /tmp/test.wav
 cat ~/.claude.json | jq '.mcpServers["voice-mode"]'
 
 # Test server directly
-python3 /mnt/agentic-system/mcp-servers/voice-mode/server.py
+python3 ${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode/server.py
 ```
 
 **No audio output (TTS or beeps)**:
