@@ -26,7 +26,7 @@ toggle-voice  # Toggles voice mode with beeps
 - 🎵 **OFF**: Lower pitch beep (600Hz, 150ms)
 
 **What requires Whisper:**
-- Actual speech-to-text transcription (coming when Python 3.14 support is ready)
+- Actual speech-to-text transcription (requires `pywhispercpp` or GPU STT endpoint)
 
 ## Overview
 
@@ -78,54 +78,20 @@ cd ${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode
 pip3 install -r requirements.txt
 ```
 
-### STT Dependencies (Optional - Python ≤3.13 Only)
+### STT Dependencies
 
-**⚠️ Python 3.14 Incompatibility**: The `faster-whisper` library depends on `onnxruntime` and `av` (PyAV) which do not yet support Python 3.14.
+**✅ Python 3.14 Compatible**: Server uses `pywhispercpp` (C++ Whisper bindings) which works with Python 3.14.
 
-**Error details**:
-- `av` (PyAV): Cython compilation fails with Python 3.14
-- `onnxruntime`: No Python 3.14 wheels available yet
-- Both are required dependencies of `faster-whisper`
+```bash
+pip install pywhispercpp
+```
 
-**Workaround Options**:
+**Alternative: GPU STT Service**
+The server also supports remote GPU inference via HTTP for faster transcription:
+- Set `GPU_STT_ENDPOINT` environment variable to your Whisper API endpoint
+- Set `GPU_STT_ENABLED=true` to prefer GPU over local CPU
 
-1. **Wait for upstream Python 3.14 support** (recommended)
-   - Track: https://github.com/SYSTRAN/faster-whisper/issues
-   - Expected: Q1-Q2 2025
-
-2. **Use Python 3.13 virtual environment** (works now):
-   ```bash
-   # Install Python 3.13 (if not available)
-   sudo dnf install python3.13
-
-   # Create Python 3.13 virtual environment
-   python3.13 -m venv ~/.venvs/whisper-py313
-   source ~/.venvs/whisper-py313/bin/activate
-   pip install faster-whisper
-
-   # Update ~/.claude.json to use venv python
-   {
-     "mcpServers": {
-       "voice-mode": {
-         "command": "${HOME}/.venvs/whisper-py313/bin/python3",
-         "args": ["${AGENTIC_SYSTEM_PATH:-/opt/agentic}/mcp-servers/voice-mode/server.py"]
-       }
-     }
-   }
-
-   # Restart Claude Code
-   ```
-
-3. **Use pywhispercpp** (C++ backend, faster):
-   - Requires code modifications to server.py
-   - No Python version restrictions
-   - Installation: `pip install pywhispercpp`
-
-4. **Use cloud STT service** (Google/Azure/AWS):
-   - Requires API keys and code modifications
-   - No local model download needed
-
-**Note**: Caps Lock toggle, beeps, and voice announcements work **immediately** without any Whisper installation!
+**Note**: TTS (Edge TTS) works **immediately** without any Whisper installation. STT requires either pywhispercpp or a GPU STT endpoint.
 
 ## Available Tools
 
@@ -421,9 +387,9 @@ ffplay -nodisp -autoexit -t 0.2 -f lavfi -i "sine=frequency=523:duration=0.1,sin
 
 ### STT Issues
 
-**Whisper installation fails (Python 3.14)**:
-- Use Python 3.13 virtual environment (see Installation section)
-- Or wait for onnxruntime Python 3.14 support
+**Whisper not working**:
+- Install pywhispercpp: `pip install pywhispercpp`
+- Or use GPU STT endpoint (set `GPU_STT_ENDPOINT` and `GPU_STT_ENABLED=true`)
 
 **Recording fails**:
 ```bash
